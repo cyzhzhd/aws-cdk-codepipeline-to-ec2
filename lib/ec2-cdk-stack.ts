@@ -1,4 +1,7 @@
+import * as cdk from "aws-cdk-lib";
 import { readFileSync } from "fs";
+import { Construct } from "constructs";
+
 import {
   Vpc,
   SubnetType,
@@ -13,19 +16,16 @@ import {
   InstanceSize,
   InstanceType,
 } from "aws-cdk-lib/aws-ec2";
-import { Role, ServicePrincipal, ManagedPolicy } from "aws-cdk-lib/aws-iam";
-import * as cdk from "aws-cdk-lib";
-import { Construct } from "constructs";
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
 
-export class Ec2CdkStack extends cdk.Stack {
+import { Role, ServicePrincipal, ManagedPolicy } from "aws-cdk-lib/aws-iam";
+
+export class PythonEc2BlogpostStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-
-    /**
-     * AWS Systems Manager & AWS CodeDeploy와 연동하기 위한 IAM role 생성
-     * */
-
+    // IAM
+    // Policy for CodeDeploy bucket access
+    // Role that will be attached to the EC2 instance so it can be
+    // managed by AWS SSM
     const webServerRole = new Role(this, "ec2Role", {
       assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
     });
@@ -41,6 +41,7 @@ export class Ec2CdkStack extends cdk.Stack {
       )
     );
 
+    // VPC
     // This VPC has 3 public subnets, and that's it
     const vpc = new Vpc(this, "main_vpc", {
       subnetConfiguration: [
@@ -62,22 +63,25 @@ export class Ec2CdkStack extends cdk.Stack {
       ],
     });
 
-    // Security Group
-    // THis SG will only allow HTTP traffic to the Web server
+    // Security Groups
+    // This SG will only allow HTTP traffic to the Web server
     const webSg = new SecurityGroup(this, "web_sg", {
       vpc,
-      description: "Allow Inbound HTTP traffic to the web server",
+      description: "Allows Inbound HTTP traffic to the web server.",
       allowAllOutbound: true,
     });
+
     webSg.addIngressRule(Peer.anyIpv4(), Port.tcp(80));
 
-    // the AMI to be used for the EC2 Instance
+    // EC2 Instance
+    // This is the Python Web server that we will be using
+    // Get the latest AmazonLinux 2 AMI for the given region
     const ami = new AmazonLinuxImage({
       generation: AmazonLinuxGeneration.AMAZON_LINUX_2,
       cpuType: AmazonLinuxCpuType.X86_64,
     });
 
-    // The actual WEb EC2 Instacne for the web server
+    // The actual Web EC2 Instance for the web server
     const webServer = new Instance(this, "web_server", {
       vpc,
       instanceType: InstanceType.of(InstanceClass.T2, InstanceSize.MICRO),
@@ -88,11 +92,11 @@ export class Ec2CdkStack extends cdk.Stack {
 
     // User data - used for bootstrapping
     // The user data is used to bootstrap the EC2 instance and install specific application packages on the instance's first boot.
-    const webSGUData = readFileSync(
+    const webSGUserData = readFileSync(
       "./assets/configure_amz_linux_sample_app.sh",
       "utf-8"
     );
-    webServer.addUserData(webSGUData);
+    webServer.addUserData(webSGUserData);
     // Tag the instance
     // The tags are used by Systems Manager to identify the instance later on for deployments.
     cdk.Tags.of(webServer).add("application-name", "python-web");
