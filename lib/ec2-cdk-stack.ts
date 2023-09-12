@@ -19,7 +19,6 @@ export class PythonEc2BlogpostStack extends cdk.Stack {
         input: CodePipelineSource.connection(String(process.env.REPO), "main", {
           connectionArn: String(process.env.CONNECTION_ARN),
         }),
-        installCommands: ["npm install -g aws-cdk"],
         commands: ["npm ci", "npm run build", "npx cdk list", "npx cdk synth"],
         env: {
           ACCOUNT: String(process.env.ACCOUNT),
