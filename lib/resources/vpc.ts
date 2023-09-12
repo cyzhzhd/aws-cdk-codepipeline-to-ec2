@@ -14,25 +14,8 @@ export class VPCResources extends Construct {
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
-    // This VPC has 3 public subnets, and that's it
     this.vpc = new Vpc(this, "main_vpc", {
-      subnetConfiguration: [
-        {
-          cidrMask: 24,
-          name: "pub01",
-          subnetType: SubnetType.PUBLIC,
-        },
-        {
-          cidrMask: 24,
-          name: "pub02",
-          subnetType: SubnetType.PUBLIC,
-        },
-        {
-          cidrMask: 24,
-          name: "pub03",
-          subnetType: SubnetType.PUBLIC,
-        },
-      ],
+      natGateways: 1,
     });
 
     // Security Groups

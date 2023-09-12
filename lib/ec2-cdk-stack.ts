@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { GitHubTrigger } from "aws-cdk-lib/aws-codepipeline-actions";
 import {
+  CodeBuildStep,
   CodePipeline,
   CodePipelineSource,
   ShellStep,
@@ -12,26 +13,21 @@ export class PythonEc2BlogpostStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const pipeline = new CodePipeline(this, "Pipeline12223", {
-      pipelineName: `docai-Pipeline`,
-      synth: new ShellStep("Synth", {
-        input: CodePipelineSource.gitHub(String(process.env.REPO), "main", {
-          authentication: cdk.SecretValue.secretsManager("github-oauth-token"),
-          trigger: GitHubTrigger.POLL,
+    const pipeline = new CodePipeline(this, "BlogPipeline", {
+      pipelineName: "BlogPipeline",
+      synth: new CodeBuildStep("Synth", {
+        input: CodePipelineSource.connection(String(process.env.REPO), "main", {
+          connectionArn: String(process.env.CONNECTION_ARN),
         }),
-        commands: [
-          "npm ci",
-          "npm run build",
-          "npx cdk list", // for debugging
-          "npx cdk synth",
-        ],
+        installCommands: ["npm install -g aws-cdk"],
+        commands: ["npm ci", "npm run build", "npx cdk list", "npx cdk synth"],
         env: {
-          account: String(process.env.ACCOUNT),
-          region: String(process.env.REGION),
-          repo: String(process.env.REPO),
-          owner: String(process.env.OWNER),
+          ACCOUNT: String(process.env.ACCOUNT),
+          REGION: String(process.env.REGION),
+          REOP: String(process.env.REPO),
+          OWNER: String(process.env.OWNER),
+          CONNECTION_ARN: String(process.env.CONNECTION_ARN),
         },
-        primaryOutputDirectory: "./cdk.out",
       }),
     });
 
