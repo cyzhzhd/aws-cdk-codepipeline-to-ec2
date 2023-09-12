@@ -31,91 +31,16 @@ import {
   InstanceTagSet,
 } from "aws-cdk-lib/aws-codedeploy";
 import { SecretValue } from "aws-cdk-lib";
+import { DocaiEnterpriseSystem } from "./pipeline-stages";
 
 export class PythonEc2BlogpostStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-    // IAM
-    // Policy for CodeDeploy bucket access
-    // Role that will be attached to the EC2 instance so it can be
-    // managed by AWS SSM
-    const webServerRole = new Role(this, "ec2Role", {
-      assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
-    });
 
-    // IAM policy attachment to allow access to
-    webServerRole.addManagedPolicy(
-      ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore")
-    );
+    // EC2를 비롯한 자원 생성
+    this.createSystem();
 
-    webServerRole.addManagedPolicy(
-      ManagedPolicy.fromAwsManagedPolicyName(
-        "service-role/AmazonEC2RoleforAWSCodeDeploy"
-      )
-    );
-
-    // VPC
-    // This VPC has 3 public subnets, and that's it
-    const vpc = new Vpc(this, "main_vpc", {
-      subnetConfiguration: [
-        {
-          cidrMask: 24,
-          name: "pub01",
-          subnetType: SubnetType.PUBLIC,
-        },
-        {
-          cidrMask: 24,
-          name: "pub02",
-          subnetType: SubnetType.PUBLIC,
-        },
-        {
-          cidrMask: 24,
-          name: "pub03",
-          subnetType: SubnetType.PUBLIC,
-        },
-      ],
-    });
-
-    // Security Groups
-    // This SG will only allow HTTP traffic to the Web server
-    const webSg = new SecurityGroup(this, "web_sg", {
-      vpc,
-      description: "Allows Inbound HTTP traffic to the web server.",
-      allowAllOutbound: true,
-    });
-
-    webSg.addIngressRule(Peer.anyIpv4(), Port.tcp(80));
-
-    // EC2 Instance
-    // This is the Python Web server that we will be using
-    // Get the latest AmazonLinux 2 AMI for the given region
-    const ami = new AmazonLinuxImage({
-      generation: AmazonLinuxGeneration.AMAZON_LINUX_2,
-      cpuType: AmazonLinuxCpuType.X86_64,
-    });
-
-    // The actual Web EC2 Instance for the web server
-    const webServer = new Instance(this, "web_server", {
-      vpc,
-      instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.MICRO),
-      machineImage: ami,
-      securityGroup: webSg,
-      role: webServerRole,
-    });
-
-    // User data - used for bootstrapping
-    // The user data is used to bootstrap the EC2 instance and install specific application packages on the instance's first boot.
-    const webSGUserData = readFileSync(
-      "./assets/configure_amz_linux_sample_app.sh",
-      "utf-8"
-    );
-    webServer.addUserData(webSGUserData);
-    // Tag the instance
-    // The tags are used by Systems Manager to identify the instance later on for deployments.
-    cdk.Tags.of(webServer).add("application-name", "python-web");
-    cdk.Tags.of(webServer).add("stage", "prod");
-
-    // Pipeline stuff
+    // Pipeline
     // CodePipeline
     const pipeline = new Pipeline(this, "python_web_pipeline", {
       pipelineName: "python-webApp",
@@ -144,7 +69,7 @@ export class PythonEc2BlogpostStack extends cdk.Stack {
     const githubSourceAction = new GitHubSourceAction({
       actionName: "GithubSource",
       oauthToken: SecretValue.secretsManager("github-oauth-token"),
-      owner: "",
+      owner: String(process.env.OWNER),
       repo: "sample-python-web-app",
       branch: "main",
       output: sourceOutput,
@@ -201,10 +126,14 @@ export class PythonEc2BlogpostStack extends cdk.Stack {
     });
 
     deployStage.addAction(pythonDeployAction);
+  }
 
-    // Output the public IP address of the EC2 instance
-    new cdk.CfnOutput(this, "IP Address", {
-      value: webServer.instancePublicIp,
+  createSystem() {
+    return new DocaiEnterpriseSystem(this, "doca enterprise", {
+      env: {
+        account: process.env.ACCOUNT,
+        region: process.env.REGION,
+      },
     });
   }
 }
