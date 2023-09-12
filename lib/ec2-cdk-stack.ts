@@ -28,6 +28,8 @@ export class PythonEc2BlogpostStack extends cdk.Stack {
         env: {
           account: String(process.env.ACCOUNT),
           region: String(process.env.REGION),
+          repo: String(process.env.REPO),
+          owner: String(process.env.OWNER),
         },
         primaryOutputDirectory: "./cdk.out",
       }),
