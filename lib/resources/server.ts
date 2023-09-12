@@ -74,7 +74,7 @@ export class ServerResources extends Construct {
     });
 
     // The actual Web EC2 Instance for the web server
-    const webServer = new Instance(this, "web_server", {
+    this.instance = new Instance(this, "web_server", {
       vpc: props.vpc,
       instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.MICRO),
       machineImage: ami,
@@ -84,7 +84,7 @@ export class ServerResources extends Construct {
     });
     // Tag the instance
     // The tags are used by Systems Manager to identify the instance later on for deployments.
-    cdk.Tags.of(webServer).add("application-name", "python-web");
-    cdk.Tags.of(webServer).add("stage", "prod");
+    cdk.Tags.of(this.instance).add("application-name", "python-web");
+    cdk.Tags.of(this.instance).add("stage", "prod");
   }
 }
