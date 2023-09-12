@@ -2,10 +2,12 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { EC2Stack } from "./stacks/ec2";
 import { CodePipelineStack } from "./stacks/code-pipeline";
+import { AppStack } from "./stacks/app";
 
 export interface DocaiEnterpriseSystemProps extends cdk.StageProps {}
 
 export interface SetupResourceStageProps extends cdk.StackProps {
+  AppStack?: AppStack;
   ec2Stack?: EC2Stack;
   codePipelineStack?: CodePipelineStack;
 }
@@ -19,7 +21,7 @@ export class SetupResourceStage extends cdk.Stage {
     };
 
     // stacks
-    stackProps.ec2Stack = new EC2Stack(this, "EC2Stack", stackProps);
+    stackProps.AppStack = new AppStack(this, "AppStack", stackProps);
     stackProps.codePipelineStack = new CodePipelineStack(
       this,
       "CodePipelineStack",

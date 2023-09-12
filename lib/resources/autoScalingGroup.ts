@@ -3,7 +3,6 @@ import * as cdk from "aws-cdk-lib";
 import {
   Vpc,
   SecurityGroup,
-  Instance,
   InstanceType,
   InstanceClass,
   InstanceSize,
@@ -12,18 +11,19 @@ import {
   AmazonLinuxGeneration,
   UserData,
 } from "aws-cdk-lib/aws-ec2";
+import { AutoScalingGroup } from "aws-cdk-lib/aws-autoscaling";
 import { Role, ServicePrincipal, ManagedPolicy } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
-interface ServerProps {
+interface ASGProps {
   vpc: Vpc;
   webSg: SecurityGroup;
 }
 
-export class ServerResources extends Construct {
-  public instance: Instance;
+export class ASGResources extends Construct {
+  public asg: AutoScalingGroup;
 
-  constructor(scope: Construct, id: string, props: ServerProps) {
+  constructor(scope: Construct, id: string, props: ASGProps) {
     super(scope, id);
 
     // IAM
@@ -64,7 +64,7 @@ export class ServerResources extends Construct {
       `sudo ./install auto`
     );
 
-    // EC2 Instance
+    // ASG EC2 Instance
     // This is the Python Web server that we will be using
     // Get the latest AmazonLinux 2 AMI for the given region
     const ami = new AmazonLinuxImage({
@@ -72,18 +72,17 @@ export class ServerResources extends Construct {
       cpuType: AmazonLinuxCpuType.X86_64,
     });
 
-    // The actual Web EC2 Instance for the web server
-    this.instance = new Instance(this, "web_server", {
+    this.asg = new AutoScalingGroup(this, "asg", {
       vpc: props.vpc,
       instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.MICRO),
       machineImage: ami,
+      userData,
       securityGroup: props.webSg,
       role: webServerRole,
-      userData: userData,
+      minCapacity: 1,
+      maxCapacity: 1,
     });
-    // Tag the instance
-    // The tags are used by Systems Manager to identify the instance later on for deployments.
-    cdk.Tags.of(this.instance).add("application-name", "python-web");
-    cdk.Tags.of(this.instance).add("stage", "prod");
+    cdk.Tags.of(this.asg).add("application-name", "python-web");
+    cdk.Tags.of(this.asg).add("stage", "prod");
   }
 }
